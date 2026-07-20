@@ -10,6 +10,7 @@
 (package! org-gcal)
 (package! nyan-mode)
 (package! gtasks :recipe (:host github :repo "thndrbrrr/gtasks"))
+(package! which-key)
 ;; To install SOME-PACKAGE from MELPA, ELPA or emacsmirror:
 ;; (package! some-package)
 

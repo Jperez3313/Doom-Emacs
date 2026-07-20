@@ -158,7 +158,8 @@
         :n "c"   #'my-gtasks-ui-complete
         :n "RET" #'my-gtasks-ui-complete
         :n "a"   #'my-gtasks-ui-add
-        :n "g"   #'my-gtasks-ui-refresh))
+        :n "g"   #'my-gtasks-ui-refresh
+        :n "q"   #'quit-window)) ;
 
 (defun my-gtasks-dashboard ()
   "Open the interactive Google Tasks dashboard."

@@ -87,3 +87,91 @@
   :config
   (setq nyan-wavy-trail t
         nyan-animate-nyancat t))
+
+;; GOOGLE TASKS CONFIG
+;; ==============================================================================================
+
+(load! "secrets.el")
+
+(use-package! gtasks
+  :config
+  (setq gtasks-token-directory (expand-file-name "~/.config/emacs/.gtasks/")
+        gtasks-client-id my-gtasks-client-id
+        gtasks-client-secret my-gtasks-client-secret))
+
+(after! gtasks
+  (defvar my-gtasks-ui-list-name "My Tasks"
+    "The default list to load in the UI. Must match the exact name in Google Tasks.")
+
+  (defvar-local my-gtasks-ui-current-list-id nil
+    "Internal variable to cache the current list ID.")
+
+  (define-derived-mode my-gtasks-ui-mode tabulated-list-mode "GTasks"
+    "Interactive major mode for managing Google Tasks."
+    (setq tabulated-list-format [("Status" 8 t)
+                                 ("Task Title" 0 nil)])
+    (setq tabulated-list-padding 2)
+    (tabulated-list-init-header))
+
+  (defun my-gtasks-ui-refresh ()
+    "Fetch tasks from Google and update the dashboard."
+    (interactive)
+    (unless my-gtasks-ui-current-list-id
+      (setq my-gtasks-ui-current-list-id (gtasks-list-id-by-title my-gtasks-ui-list-name)))
+
+    (message "Syncing with Google Tasks...")
+    (let* ((response (gtasks-task-list my-gtasks-ui-current-list-id))
+           (tasks (plist-get response :items))
+           (entries nil))
+      (dolist (task tasks)
+        (let* ((id (plist-get task :id))
+               (title (plist-get task :title))
+               (status (plist-get task :status)))
+          (when (string= status "needsAction")
+            (push (list id (vector "[ ]" title)) entries))))
+
+      (setq tabulated-list-entries (nreverse entries))
+      (tabulated-list-print t)
+      (message "Tasks synced!")))
+
+  (defun my-gtasks-ui-complete ()
+    "Mark the task currently under the cursor as complete."
+    (interactive)
+    (let ((task-id (tabulated-list-get-id)))
+      (if task-id
+          (progn
+            (message "Checking off task...")
+            (gtasks-task-complete my-gtasks-ui-current-list-id task-id)
+            (my-gtasks-ui-refresh))
+        (user-error "No task found at cursor position"))))
+
+  (defun my-gtasks-ui-add (title)
+    "Prompt for a new task, send it to Google, and refresh the dashboard."
+    (interactive "sNew task: ")
+    (unless my-gtasks-ui-current-list-id
+      (setq my-gtasks-ui-current-list-id (gtasks-list-id-by-title my-gtasks-ui-list-name)))
+    (message "Adding task...")
+    (gtasks-task-insert my-gtasks-ui-current-list-id (list :title title))
+    (my-gtasks-ui-refresh))
+
+   (map! :map my-gtasks-ui-mode-map
+        :n "c"   #'my-gtasks-ui-complete
+        :n "RET" #'my-gtasks-ui-complete
+        :n "a"   #'my-gtasks-ui-add
+        :n "g"   #'my-gtasks-ui-refresh))
+
+(defun my-gtasks-dashboard ()
+  "Open the interactive Google Tasks dashboard."
+  (interactive)
+  (let ((buf (get-buffer-create "*Google Tasks Dashboard*")))
+    (with-current-buffer buf
+      (my-gtasks-ui-mode)
+      (my-gtasks-ui-refresh))
+    (switch-to-buffer buf)))
+
+;; CUSTOM GOOGLE KEYBINDINGS
+;; ==============================================================================================
+(map! :leader
+      (:prefix-map ("g" . "google")
+       :desc "Google Tasks Dashboard" "t" #'my-gtasks-dashboard
+       :desc "Google Calendar"        "c" #'cfw:open-org-calendar)) ; Or your specific calendar command

@@ -1,1 +1,1 @@
-My doom emacs notes.
+My doom emacs notes / dot files.
